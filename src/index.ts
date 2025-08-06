@@ -1,5 +1,16 @@
 import {type EventEmitter} from 'node:events'
 
+function withResolvers<T = void>(Promise: PromiseConstructor) {
+  let resolve!: (value: T) => void
+  let reject!: (error: unknown) => void
+  const promise = new Promise<T>((thisResolve, thisReject) => {
+    resolve = thisResolve
+    reject = thisReject
+  })
+
+  return {promise, resolve, reject}
+}
+
 /**
  * Worker channel namespace containing types for defining structured communication
  * channels between worker threads and their parent processes.
@@ -224,7 +235,7 @@ interface ReceiverSubscriber {
 class StreamBuffer<T> {
   #finished = false
   #buffer: T[] = []
-  #error = Promise.withResolvers<never>()
+  #error = withResolvers<never>(Promise)
   #target = new EventTarget()
 
   emit = (payload: T) => {
@@ -242,7 +253,7 @@ class StreamBuffer<T> {
   }
 
   #ready() {
-    const {promise, resolve} = Promise.withResolvers<void>()
+    const {promise, resolve} = withResolvers<void>(Promise)
 
     const handler = () => {
       if (!this.#buffer.length) return
@@ -338,7 +349,7 @@ export class WorkerChannelReceiver<TDefinition extends WorkerChannel.Definition>
 
   #events = new Map<string, PromiseWithResolvers<unknown>>()
   #streams = new Map<string, StreamBuffer<unknown>>()
-  #error = Promise.withResolvers<never>()
+  #error = withResolvers<never>(Promise)
 
   /** Function to call to unsubscribe from worker messages and clean up listeners */
   unsubscribe: () => void
@@ -373,7 +384,7 @@ export class WorkerChannelReceiver<TDefinition extends WorkerChannel.Definition>
   }
 
   #getEvent(name: string) {
-    const event = this.#events.get(name) ?? Promise.withResolvers()
+    const event = this.#events.get(name) ?? withResolvers(Promise)
     if (!this.#events.has(name)) this.#events.set(name, event)
     return event
   }
