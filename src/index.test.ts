@@ -45,7 +45,11 @@ describe('WorkerChannel', () => {
       )
     })
 
-    it('should handle error events and reject awaiting event promises (EventTarget)', async () => {
+    it('should handle error events and reject awaiting event promises (EventTarget)', async ({
+      skip,
+    }) => {
+      if (typeof CustomEvent === 'undefined') skip()
+
       const eventTarget = new EventTarget()
       const receiver = WorkerChannelReceiver.from<TestDefinition>(eventTarget)
 
@@ -105,7 +109,11 @@ describe('WorkerChannel', () => {
       )
     })
 
-    it('should handle error events and propagate to stream buffer (EventTarget)', async () => {
+    it('should handle error events and propagate to stream buffer (EventTarget)', async ({
+      skip,
+    }) => {
+      if (typeof CustomEvent === 'undefined') skip()
+
       const eventTarget = new EventTarget()
       const receiver = WorkerChannelReceiver.from<TestDefinition>(eventTarget)
 
@@ -189,7 +197,9 @@ describe('WorkerChannel', () => {
       receiver.unsubscribe()
     })
 
-    it('should work with EventTarget (addEventListener interface)', async () => {
+    it('should work with EventTarget (addEventListener interface)', async ({skip}) => {
+      if (typeof CustomEvent === 'undefined') skip()
+
       const eventTarget = new EventTarget()
       const receiver = WorkerChannelReceiver.from<TestDefinition>(eventTarget)
 

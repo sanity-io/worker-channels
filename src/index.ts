@@ -227,6 +227,26 @@ interface ReceiverSubscriber {
   error: (error: unknown) => void
 }
 
+// Originally used EventTarget but compatibility is better with something inline
+class SimpleEmitter {
+  #subscribers = new Map<object, () => void>()
+
+  notify() {
+    for (const subscriber of this.#subscribers.values()) {
+      subscriber()
+    }
+  }
+
+  subscribe(subscriber: () => void): () => void {
+    const id = {}
+    this.#subscribers.set(id, subscriber)
+
+    return () => {
+      this.#subscribers.delete(id)
+    }
+  }
+}
+
 /**
  * Internal buffer for managing stream data flow between worker and parent.
  * Handles buffering incoming messages when the worker produces data faster than
@@ -236,16 +256,16 @@ class StreamBuffer<T> {
   #finished = false
   #buffer: T[] = []
   #error = withResolvers<never>(Promise)
-  #target = new EventTarget()
+  #target = new SimpleEmitter()
 
   emit = (payload: T) => {
     this.#buffer.push(payload)
-    this.#target.dispatchEvent(new CustomEvent('ready'))
+    this.#target.notify()
   }
 
   end = () => {
     this.#finished = true
-    this.#target.dispatchEvent(new CustomEvent('ready'))
+    this.#target.notify()
   }
 
   error = (error: unknown) => {
@@ -257,10 +277,10 @@ class StreamBuffer<T> {
 
     const handler = () => {
       if (!this.#buffer.length) return
-      this.#target.removeEventListener('ready', handler)
+      unsubscribe()
       resolve()
     }
-    this.#target.addEventListener('ready', handler)
+    const unsubscribe = this.#target.subscribe(handler)
     handler()
 
     return Promise.race([promise, this.#error.promise])
@@ -379,8 +399,11 @@ export class WorkerChannelReceiver<TDefinition extends WorkerChannel.Definition>
   }
 
   #handleError = (e: unknown): void => {
-    if (e instanceof CustomEvent) this.#error.reject(e.detail)
-    else this.#error.reject(e)
+    if (typeof CustomEvent !== 'undefined' && e instanceof CustomEvent) {
+      this.#error.reject(e.detail)
+    } else {
+      this.#error.reject(e)
+    }
   }
 
   #getEvent(name: string) {
@@ -487,7 +510,11 @@ export class WorkerChannelReporter<TDefinition extends WorkerChannel.Definition>
     if ('postMessage' in parentPort) {
       return new WorkerChannelReporter<TDefinition>((message) => parentPort.postMessage(message))
     }
-    if ('dispatchEvent' in parentPort && 'addEventListener' in parentPort) {
+    if (
+      'dispatchEvent' in parentPort &&
+      'addEventListener' in parentPort &&
+      typeof CustomEvent !== 'undefined'
+    ) {
       return new WorkerChannelReporter<TDefinition>((message) =>
         parentPort.dispatchEvent(new CustomEvent('message', {detail: message})),
       )
