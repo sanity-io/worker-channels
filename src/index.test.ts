@@ -13,6 +13,14 @@ type TestDefinition = WorkerChannel.Definition<{
   testStream: WorkerChannel.Stream<number>
 }>
 
+async function fromAsync<T>(asyncIterable: AsyncIterable<T>) {
+  const items: T[] = []
+  for await (const item of asyncIterable) {
+    items.push(item)
+  }
+  return items
+}
+
 describe('WorkerChannel', () => {
   let reporter: WorkerChannelReporter<TestDefinition>
   let receiver: WorkerChannelReceiver<TestDefinition>
@@ -72,12 +80,13 @@ describe('WorkerChannel', () => {
 
   describe('Stream handling', () => {
     it('should emit and receive stream values', async () => {
+      const resultsPromise = fromAsync(receiver.stream.testStream())
       const streamReporter = reporter.stream.testStream
       streamReporter.emit(1)
       streamReporter.emit(2)
       streamReporter.end()
 
-      await expect(Array.fromAsync(receiver.stream.testStream())).resolves.toEqual([1, 2])
+      await expect(resultsPromise).resolves.toEqual([1, 2])
     })
 
     it('should throw when emitting after stream end', () => {
@@ -103,7 +112,7 @@ describe('WorkerChannel', () => {
       const testError = new Error('Stream error')
 
       // Start consuming stream
-      const streamResults = Array.fromAsync(receiver.stream.testStream())
+      const streamResults = fromAsync(receiver.stream.testStream())
 
       // Dispatch error event
       eventTarget.dispatchEvent(new CustomEvent('error', {detail: testError}))
@@ -119,7 +128,7 @@ describe('WorkerChannel', () => {
       const testError = new Error('Stream error')
 
       // Start consuming stream
-      const streamResults = Array.fromAsync(receiver.stream.testStream())
+      const streamResults = fromAsync(receiver.stream.testStream())
 
       // Emit error event
       emitter.emit('error', testError)
