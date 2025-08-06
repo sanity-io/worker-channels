@@ -26,9 +26,9 @@ describe('WorkerChannel', () => {
   let receiver: WorkerChannelReceiver<TestDefinition>
 
   beforeEach(() => {
-    const eventTarget = new EventTarget()
-    reporter = WorkerChannelReporter.from<TestDefinition>(eventTarget)
-    receiver = WorkerChannelReceiver.from<TestDefinition>(eventTarget)
+    const emitter = new EventEmitter()
+    reporter = WorkerChannelReporter.from<TestDefinition>(emitter)
+    receiver = WorkerChannelReceiver.from<TestDefinition>(emitter)
   })
 
   describe('Event handling', () => {
@@ -289,7 +289,9 @@ describe('WorkerChannel', () => {
       })
     })
 
-    it('should work with EventTarget (dispatchEvent interface)', () => {
+    it('should work with EventTarget (dispatchEvent interface)', ({skip}) => {
+      if (typeof CustomEvent === 'undefined') skip()
+
       const eventTarget = new EventTarget()
       const dispatchEventSpy = vi.spyOn(eventTarget, 'dispatchEvent')
 
@@ -377,9 +379,9 @@ describe('WorkerChannel', () => {
     let receiver: WorkerChannelReceiver<TestDefinition>
 
     beforeEach(() => {
-      const eventTarget = new EventTarget()
-      reporter = WorkerChannelReporter.from<TestDefinition>(eventTarget)
-      receiver = WorkerChannelReceiver.from<TestDefinition>(eventTarget)
+      const emitter = new EventEmitter()
+      reporter = WorkerChannelReporter.from<TestDefinition>(emitter)
+      receiver = WorkerChannelReceiver.from<TestDefinition>(emitter)
     })
 
     it('should return undefined when accessing event reporters with symbols', () => {
