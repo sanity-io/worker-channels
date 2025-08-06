@@ -1,0 +1,65 @@
+{
+  "name": "@sanity/worker-channels",
+  "version": "1.0.0",
+  "description": "Type-safe, structured communication between worker threads and parent processes via TypeScript meta-programming.",
+  "keywords": [
+    "sanity"
+  ],
+  "bugs": {
+    "url": "https://github.com/sanity-io/worker-channels/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/sanity-io/worker-channels.git"
+  },
+  "license": "MIT",
+  "author": "Sanity.io <hello@sanity.io>",
+  "sideEffects": false,
+  "type": "module",
+  "exports": {
+    ".": {
+      "source": "./src/index.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist",
+    "src"
+  ],
+  "scripts": {
+    "build": "pkg-utils build --strict --check --clean",
+    "lint": "eslint .",
+    "prepublishOnly": "npm run build",
+    "test": "tsc && vitest --run --coverage"
+  },
+  "browserslist": "extends @sanity/browserslist-config",
+  "prettier": "@sanity/prettier-config",
+  "devDependencies": {
+    "@sanity/browserslist-config": "^1.0.5",
+    "@sanity/pkg-utils": "^7.8.4",
+    "@sanity/prettier-config": "^1.0.5",
+    "@sanity/semantic-release-preset": "^5.0.0",
+    "@vitest/coverage-v8": "^3.2.4",
+    "eslint": "^9.29.0",
+    "eslint-config-prettier": "^10.1.5",
+    "eslint-import-resolver-typescript": "^4.4.3",
+    "eslint-plugin-import-x": "^4.15.2",
+    "eslint-plugin-prettier": "^5.5.0",
+    "eslint-plugin-tsdoc": "^0.4.0",
+    "semantic-release": "^24.2.5",
+    "typescript": "^5.3.3",
+    "typescript-eslint": "^8.34.1",
+    "vitest": "^3.2.4"
+  },
+  "packageManager": "pnpm@9.15.9+sha512.68046141893c66fad01c079231128e9afb89ef87e2691d69e4d40eee228988295fd4682181bae55b58418c3a253bde65a505ec7c5f9403ece5cc3cd37dcf2531",
+  "engines": {
+    "node": ">=18.2"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}
