@@ -93,6 +93,14 @@ describe('WorkerChannel', () => {
       await expect(resultsPromise).resolves.toEqual([1, 2])
     })
 
+    it('should not hang if stream ends before any items are emitted', async () => {
+      const resultsPromise = fromAsync(receiver.stream.testStream())
+      const streamReporter = reporter.stream.testStream
+      streamReporter.end()
+
+      await expect(resultsPromise).resolves.toEqual([])
+    })
+
     it('should throw when emitting after stream end', () => {
       const streamReporter = reporter.stream.testStream
       streamReporter.end()

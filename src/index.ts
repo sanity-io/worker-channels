@@ -276,9 +276,10 @@ class StreamBuffer<T> {
     const {promise, resolve} = withResolvers<void>(Promise)
 
     const handler = () => {
-      if (!this.#buffer.length) return
-      unsubscribe()
-      resolve()
+      if (this.#buffer.length || this.#finished) {
+        unsubscribe()
+        resolve()
+      }
     }
     const unsubscribe = this.#target.subscribe(handler)
     handler()
@@ -288,10 +289,10 @@ class StreamBuffer<T> {
 
   async *[Symbol.asyncIterator]() {
     while (!this.#finished || this.#buffer.length) {
-      await this.#ready()
       while (this.#buffer.length) {
         yield this.#buffer.shift()
       }
+      await this.#ready()
     }
   }
 }
