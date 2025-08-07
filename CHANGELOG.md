@@ -5,6 +5,16 @@
 All notable changes to this project will be documented in this file. See
 [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.1.0](https://github.com/sanity-io/worker-channels/compare/v1.0.0...v1.1.0) (2025-08-07)
+
+### Features
+
+- add commonjs/require build ([74f2f77](https://github.com/sanity-io/worker-channels/commit/74f2f77807121daee0876ec220a7008cddd9a01d))
+
+### Bug Fixes
+
+- prevent hang when stream ends before buffering ([e0b43f3](https://github.com/sanity-io/worker-channels/commit/e0b43f380f0bdde64e9434d08087abfc6282ad2f))
+
 ## 1.0.0 (2025-08-06)
 
 ### Bug Fixes
