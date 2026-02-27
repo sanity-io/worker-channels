@@ -573,4 +573,54 @@ describe('WorkerChannel', () => {
       expect((receiver.stream as any)[testSymbol]).toBeUndefined()
     })
   })
+
+  describe('Object.prototype key collision avoidance', () => {
+    const prototypeKeys = ['toString', 'constructor', '__proto__', 'hasOwnProperty', 'valueOf']
+
+    it('should return reporter functions for event names that match Object.prototype keys', () => {
+      const emitter = new EventEmitter()
+      const reporter = WorkerChannelReporter.from<TestDefinition>(emitter)
+
+      for (const key of prototypeKeys) {
+        const fn = (reporter.event as any)[key]
+        expect(fn).toBeTypeOf('function')
+        expect(fn).not.toBe((Object.prototype as any)[key])
+      }
+    })
+
+    it('should return stream reporter objects for stream names that match Object.prototype keys', () => {
+      const emitter = new EventEmitter()
+      const reporter = WorkerChannelReporter.from<TestDefinition>(emitter)
+
+      for (const key of prototypeKeys) {
+        const stream = (reporter.stream as any)[key]
+        expect(stream).toHaveProperty('emit')
+        expect(stream).toHaveProperty('end')
+        expect(stream.emit).toBeTypeOf('function')
+        expect(stream.end).toBeTypeOf('function')
+      }
+    })
+
+    it('should return receiver functions for event names that match Object.prototype keys', () => {
+      const emitter = new EventEmitter()
+      const receiver = WorkerChannelReceiver.from<TestDefinition>(emitter)
+
+      for (const key of prototypeKeys) {
+        const fn = (receiver.event as any)[key]
+        expect(fn).toBeTypeOf('function')
+        expect(fn).not.toBe((Object.prototype as any)[key])
+      }
+    })
+
+    it('should return receiver functions for stream names that match Object.prototype keys', () => {
+      const emitter = new EventEmitter()
+      const receiver = WorkerChannelReceiver.from<TestDefinition>(emitter)
+
+      for (const key of prototypeKeys) {
+        const fn = (receiver.stream as any)[key]
+        expect(fn).toBeTypeOf('function')
+        expect(fn).not.toBe((Object.prototype as any)[key])
+      }
+    })
+  })
 })

@@ -436,7 +436,7 @@ export class WorkerChannelReceiver<TDefinition extends WorkerChannel.Definition>
    * defined in the channel definition and returns a function that resolves when
    * the event is received from the worker.
    */
-  event = new Proxy({} as EventReceivers<TDefinition>, {
+  event = new Proxy(Object.create(null) as EventReceivers<TDefinition>, {
     get: (...[target, name]): EventReceiver | undefined => {
       if (typeof name !== 'string') return undefined
       return ((target as any)[name] ??= () =>
@@ -449,7 +449,7 @@ export class WorkerChannelReceiver<TDefinition extends WorkerChannel.Definition>
    * defined in the channel definition and returns a function that returns an async
    * iterator for receiving streamed data from the worker.
    */
-  stream = new Proxy({} as StreamReceivers<TDefinition>, {
+  stream = new Proxy(Object.create(null) as StreamReceivers<TDefinition>, {
     get: (...[target, name]): StreamReceiver | undefined => {
       if (typeof name !== 'string') return undefined
       return ((target as any)[name] ??= () => this.#getStream(name))
@@ -564,7 +564,7 @@ export class WorkerChannelReporter<TDefinition extends WorkerChannel.Definition>
    * defined in the channel definition and returns a function that sends the event
    * to the parent process. Each event can only be reported once.
    */
-  event = new Proxy({} as EventReporters<TDefinition>, {
+  event = new Proxy(Object.create(null) as EventReporters<TDefinition>, {
     get: (...[target, name]): EventReporter | undefined => {
       if (typeof name !== 'string') return undefined
       return ((target as any)[name] ??= (payload: unknown) => {
@@ -585,7 +585,7 @@ export class WorkerChannelReporter<TDefinition extends WorkerChannel.Definition>
    * defined in the channel definition and returns an object with `emit()` and `end()`
    * methods for sending streaming data to the parent process.
    */
-  stream = new Proxy({} as StreamReporters<TDefinition>, {
+  stream = new Proxy(Object.create(null) as StreamReporters<TDefinition>, {
     get: (...[target, name]): StreamReporter | undefined => {
       if (typeof name !== 'string') return undefined
       return ((target as any)[name] ??= {
