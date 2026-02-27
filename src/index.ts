@@ -219,6 +219,7 @@ export function isWorkerChannelMessage(message: unknown): message is WorkerChann
   if (!message) return false
   if (!('type' in message)) return false
   if (typeof message.type !== 'string') return false
+  if (!('name' in message) || typeof message.name !== 'string') return false
   return MESSAGE_TYPES.has(message.type)
 }
 
@@ -284,7 +285,7 @@ class StreamBuffer<T> {
     const unsubscribe = this.#target.subscribe(handler)
     handler()
 
-    return Promise.race([promise, this.#error.promise])
+    return Promise.race([promise, this.#error.promise]).finally(unsubscribe)
   }
 
   async *[Symbol.asyncIterator]() {
@@ -370,7 +371,11 @@ export class WorkerChannelReceiver<TDefinition extends WorkerChannel.Definition>
 
   #events = new Map<string, PromiseWithResolvers<unknown>>()
   #streams = new Map<string, StreamBuffer<unknown>>()
-  #error = withResolvers<never>(Promise)
+  #error = (() => {
+    const error = withResolvers<never>(Promise)
+    error.promise.catch(() => {})
+    return error
+  })()
 
   /** Function to call to unsubscribe from worker messages and clean up listeners */
   unsubscribe: () => void
@@ -414,10 +419,12 @@ export class WorkerChannelReceiver<TDefinition extends WorkerChannel.Definition>
   }
 
   #getStream(name: string) {
-    const stream = this.#streams.get(name) ?? new StreamBuffer()
-    if (!this.#streams.has(name)) this.#streams.set(name, stream)
-    this.#error.promise.catch(stream.error)
-    return stream
+    const stream = this.#streams.get(name)
+    if (stream) return stream
+    const newStream = new StreamBuffer()
+    this.#streams.set(name, newStream)
+    this.#error.promise.catch(newStream.error)
+    return newStream
   }
 
   /**
@@ -426,9 +433,10 @@ export class WorkerChannelReceiver<TDefinition extends WorkerChannel.Definition>
    * the event is received from the worker.
    */
   event = new Proxy({} as EventReceivers<TDefinition>, {
-    get: (...[, name]): EventReceiver | undefined => {
+    get: (...[target, name]): EventReceiver | undefined => {
       if (typeof name !== 'string') return undefined
-      return () => Promise.race([this.#getEvent(name).promise, this.#error.promise])
+      return ((target as any)[name] ??= () =>
+        Promise.race([this.#getEvent(name).promise, this.#error.promise]))
     },
   })
 
@@ -438,9 +446,9 @@ export class WorkerChannelReceiver<TDefinition extends WorkerChannel.Definition>
    * iterator for receiving streamed data from the worker.
    */
   stream = new Proxy({} as StreamReceivers<TDefinition>, {
-    get: (...[, name]): StreamReceiver | undefined => {
+    get: (...[target, name]): StreamReceiver | undefined => {
       if (typeof name !== 'string') return undefined
-      return () => this.#getStream(name)
+      return ((target as any)[name] ??= () => this.#getStream(name))
     },
   })
 }
@@ -553,9 +561,9 @@ export class WorkerChannelReporter<TDefinition extends WorkerChannel.Definition>
    * to the parent process. Each event can only be reported once.
    */
   event = new Proxy({} as EventReporters<TDefinition>, {
-    get: (...[, name]): EventReporter | undefined => {
+    get: (...[target, name]): EventReporter | undefined => {
       if (typeof name !== 'string') return undefined
-      return (payload) => {
+      return ((target as any)[name] ??= (payload: unknown) => {
         if (this.#reportedEvents.has(name)) {
           throw new Error(
             `Cannot report event "${name}" because it has already been reported. ` +
@@ -564,7 +572,7 @@ export class WorkerChannelReporter<TDefinition extends WorkerChannel.Definition>
         }
         this.#reportedEvents.add(name)
         this.#postMessage({type: 'channel-event', name, payload})
-      }
+      })
     },
   })
 
@@ -574,10 +582,10 @@ export class WorkerChannelReporter<TDefinition extends WorkerChannel.Definition>
    * methods for sending streaming data to the parent process.
    */
   stream = new Proxy({} as StreamReporters<TDefinition>, {
-    get: (...[, name]): StreamReporter | undefined => {
+    get: (...[target, name]): StreamReporter | undefined => {
       if (typeof name !== 'string') return undefined
-      return {
-        emit: (payload) => {
+      return ((target as any)[name] ??= {
+        emit: (payload: unknown) => {
           if (this.#finishedStreams.has(name)) {
             throw new Error(
               `Cannot emit to stream "${name}" because it has already been finished. ` +
@@ -596,7 +604,7 @@ export class WorkerChannelReporter<TDefinition extends WorkerChannel.Definition>
           this.#finishedStreams.add(name)
           this.#postMessage({type: 'channel-end', name})
         },
-      }
+      })
     },
   })
 }

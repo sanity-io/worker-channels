@@ -380,6 +380,165 @@ describe('WorkerChannel', () => {
         expect(isWorkerChannelMessage(message)).toBe(false)
       }
     })
+
+    it('should return false for messages with valid type but non-string name', () => {
+      const messagesWithBadNames = [
+        {type: 'channel-event', name: 42, payload: 'data'},
+        {type: 'channel-emission', name: undefined, payload: 'data'},
+        {type: 'channel-end'}, // missing name entirely
+        {type: 'channel-event', name: null, payload: 'data'},
+        {type: 'channel-event', name: true, payload: 'data'},
+      ]
+
+      for (const message of messagesWithBadNames) {
+        expect(isWorkerChannelMessage(message)).toBe(false)
+      }
+    })
+  })
+
+  describe('Memory safety', () => {
+    it('should not trigger unhandled rejection when error fires before any event or stream is accessed', async () => {
+      const emitter = new EventEmitter()
+      const unhandledRejectionSpy = vi.fn()
+      process.on('unhandledRejection', unhandledRejectionSpy)
+
+      try {
+        const receiver = WorkerChannelReceiver.from<TestDefinition>(emitter)
+
+        // Emit an error BEFORE accessing any event or stream
+        emitter.emit('error', new Error('early error'))
+
+        // Allow microtasks to settle (unhandledRejection fires asynchronously)
+        await new Promise((resolve) => setTimeout(resolve, 50))
+
+        expect(unhandledRejectionSpy).not.toHaveBeenCalled()
+
+        receiver.unsubscribe()
+      } finally {
+        process.removeListener('unhandledRejection', unhandledRejectionSpy)
+      }
+    })
+
+    it('should clean up stream subscribers when error terminates iteration mid-stream', async () => {
+      const emitter = new EventEmitter()
+      const receiver = WorkerChannelReceiver.from<TestDefinition>(emitter)
+
+      // Start consuming stream
+      const streamPromise = fromAsync(receiver.stream.testStream())
+
+      // Emit several items, each causing an internal #ready() -> subscribe cycle
+      emitter.emit('message', {type: 'channel-emission', name: 'testStream', payload: 1})
+      emitter.emit('message', {type: 'channel-emission', name: 'testStream', payload: 2})
+      emitter.emit('message', {type: 'channel-emission', name: 'testStream', payload: 3})
+
+      // Trigger error mid-stream
+      emitter.emit('error', new Error('mid-stream error'))
+
+      // Stream should reject with the error (not hang)
+      await expect(streamPromise).rejects.toThrow('mid-stream error')
+
+      receiver.unsubscribe()
+    })
+
+    it('should not attach duplicate error handlers when receiving multiple stream messages', () => {
+      const emitter = new EventEmitter()
+
+      // Spy on Promise.prototype.catch to count handler attachments
+      const catchSpy = vi.spyOn(Promise.prototype, 'catch')
+
+      const receiver = WorkerChannelReceiver.from<TestDefinition>(emitter)
+      const callsAfterCreate = catchSpy.mock.calls.length
+
+      // Emit 10 stream messages — each triggers #getStream internally
+      for (let i = 0; i < 10; i++) {
+        emitter.emit('message', {type: 'channel-emission', name: 'testStream', payload: i})
+      }
+
+      const catchCallsDuringEmissions = catchSpy.mock.calls.length - callsAfterCreate
+
+      // With the bug: 10 .catch() calls (one per emission via #getStream)
+      // With the fix: 1 .catch() call (only on first #getStream for this name)
+      expect(catchCallsDuringEmissions).toBeLessThanOrEqual(1)
+
+      catchSpy.mockRestore()
+      receiver.unsubscribe()
+    })
+  })
+
+  describe('Stream consumption semantics', () => {
+    it('should split items between multiple iterators on the same stream (single-consumer design)', async () => {
+      const emitter = new EventEmitter()
+      const receiver = WorkerChannelReceiver.from<TestDefinition>(emitter)
+
+      // Start two consumers on the same stream
+      const consumer1Items: number[] = []
+      const consumer2Items: number[] = []
+
+      const consumer1 = (async () => {
+        for await (const item of receiver.stream.testStream()) {
+          consumer1Items.push(item)
+        }
+      })()
+
+      const consumer2 = (async () => {
+        for await (const item of receiver.stream.testStream()) {
+          consumer2Items.push(item)
+        }
+      })()
+
+      // Emit items
+      emitter.emit('message', {type: 'channel-emission', name: 'testStream', payload: 1})
+      emitter.emit('message', {type: 'channel-emission', name: 'testStream', payload: 2})
+      emitter.emit('message', {type: 'channel-emission', name: 'testStream', payload: 3})
+      emitter.emit('message', {type: 'channel-emission', name: 'testStream', payload: 4})
+      emitter.emit('message', {type: 'channel-end', name: 'testStream'})
+
+      await Promise.all([consumer1, consumer2])
+
+      // Items are shared — the total across both consumers equals all emitted items,
+      // but neither consumer gets all of them
+      const allItems = [...consumer1Items, ...consumer2Items].sort()
+      expect(allItems).toEqual([1, 2, 3, 4])
+      expect(consumer1Items.length + consumer2Items.length).toBe(4)
+    })
+  })
+
+  describe('Proxy caching', () => {
+    it('should return the same event reporter function for repeated access', () => {
+      const emitter = new EventEmitter()
+      const reporter = WorkerChannelReporter.from<TestDefinition>(emitter)
+
+      const fn1 = reporter.event.testEvent
+      const fn2 = reporter.event.testEvent
+      expect(fn1).toBe(fn2)
+    })
+
+    it('should return the same stream reporter object for repeated access', () => {
+      const emitter = new EventEmitter()
+      const reporter = WorkerChannelReporter.from<TestDefinition>(emitter)
+
+      const stream1 = reporter.stream.testStream
+      const stream2 = reporter.stream.testStream
+      expect(stream1).toBe(stream2)
+    })
+
+    it('should return the same event receiver function for repeated access', () => {
+      const emitter = new EventEmitter()
+      const receiver = WorkerChannelReceiver.from<TestDefinition>(emitter)
+
+      const fn1 = receiver.event.testEvent
+      const fn2 = receiver.event.testEvent
+      expect(fn1).toBe(fn2)
+    })
+
+    it('should return the same stream receiver function for repeated access', () => {
+      const emitter = new EventEmitter()
+      const receiver = WorkerChannelReceiver.from<TestDefinition>(emitter)
+
+      const fn1 = receiver.stream.testStream
+      const fn2 = receiver.stream.testStream
+      expect(fn1).toBe(fn2)
+    })
   })
 
   describe('Proxy symbol handling', () => {
