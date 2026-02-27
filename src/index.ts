@@ -256,7 +256,11 @@ class SimpleEmitter {
 class StreamBuffer<T> {
   #finished = false
   #buffer: T[] = []
-  #error = withResolvers<never>(Promise)
+  #error = (() => {
+    const error = withResolvers<never>(Promise)
+    error.promise.catch(() => {})
+    return error
+  })()
   #target = new SimpleEmitter()
 
   emit = (payload: T) => {

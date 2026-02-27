@@ -449,19 +449,21 @@ describe('WorkerChannel', () => {
       const receiver = WorkerChannelReceiver.from<TestDefinition>(emitter)
       const callsAfterCreate = catchSpy.mock.calls.length
 
-      // Emit 10 stream messages — each triggers #getStream internally
-      for (let i = 0; i < 10; i++) {
-        emitter.emit('message', {type: 'channel-emission', name: 'testStream', payload: i})
+      try {
+        // Emit 10 stream messages — each triggers #getStream internally
+        for (let i = 0; i < 10; i++) {
+          emitter.emit('message', {type: 'channel-emission', name: 'testStream', payload: i})
+        }
+
+        const catchCallsDuringEmissions = catchSpy.mock.calls.length - callsAfterCreate
+
+        // With the bug: 10+ .catch() calls (one per emission via #getStream)
+        // With the fix: 2 .catch() calls (StreamBuffer's no-op + receiver error forwarding, only on first #getStream)
+        expect(catchCallsDuringEmissions).toBeLessThanOrEqual(2)
+      } finally {
+        catchSpy.mockRestore()
+        receiver.unsubscribe()
       }
-
-      const catchCallsDuringEmissions = catchSpy.mock.calls.length - callsAfterCreate
-
-      // With the bug: 10 .catch() calls (one per emission via #getStream)
-      // With the fix: 1 .catch() call (only on first #getStream for this name)
-      expect(catchCallsDuringEmissions).toBeLessThanOrEqual(1)
-
-      catchSpy.mockRestore()
-      receiver.unsubscribe()
     })
   })
 
