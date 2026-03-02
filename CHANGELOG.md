@@ -5,6 +5,21 @@
 All notable changes to this project will be documented in this file. See
 [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [2.0.0](https://github.com/sanity-io/worker-channels/compare/v1.1.0...v2.0.0) (2026-03-02)
+
+### ⚠ BREAKING CHANGES
+
+- This module now requires node.js >=20.19.1 <22 _or_ >=22.12
+- This module now only exports an ESM variant, CommonJS is no longer supported
+
+### Features
+
+- require node.js >= 20.10.1 or >=22.12, drop commonjs ([#3](https://github.com/sanity-io/worker-channels/issues/3)) ([d160579](https://github.com/sanity-io/worker-channels/commit/d160579d71b3db3c46e6f08ab53b958f6effb55c))
+
+### Bug Fixes
+
+- eliminiate leaks, possible race condition ([#2](https://github.com/sanity-io/worker-channels/issues/2)) ([1fa65cd](https://github.com/sanity-io/worker-channels/commit/1fa65cd910cda97d1b687326a733f72b8dc30c42))
+
 ## [1.1.0](https://github.com/sanity-io/worker-channels/compare/v1.0.0...v1.1.0) (2025-08-07)
 
 ### Features
