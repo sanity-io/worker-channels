@@ -34,7 +34,7 @@ jobs:
         node: [20, 22, 24]
     name: test (node ${{ matrix.node }})
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: pnpm/action-setup@v2
       - uses: actions/setup-node@v4
         with:
@@ -54,7 +54,7 @@ jobs:
       pull-requests: write # to be able to comment on released pull requests
       id-token: write # to enable use of OIDC for npm provenance
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           # Need to fetch entire commit history to
           # analyze every commit since last release
